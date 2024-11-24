@@ -14,9 +14,9 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-func CreateTransitionVideo(directory string) (imgPath, videoPath string) {
-	transitionImagePath := filepath.Join(directory, "transition.jpg")
-	transitionVideoPath := filepath.Join(directory, "transition.mkv")
+func CreateTransitionVideo() (imgPath, videoPath string) {
+	transitionImagePath := filepath.Join(config.TEMP_DIRECTORY, "transition.jpg")
+	transitionVideoPath := filepath.Join(config.TEMP_DIRECTORY, "transition.mkv")
 
 	createTransitionImage(transitionImagePath)
 

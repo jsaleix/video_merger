@@ -5,3 +5,7 @@
 *.mov
 *.jpg
 *.exe
+
+timecodes.txt
+
+/temp

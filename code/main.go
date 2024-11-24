@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"video_merger/config"
 	"video_merger/timecodes"
 	"video_merger/transition"
 
@@ -13,6 +14,7 @@ import (
 )
 
 func main() {
+	config.Init()
 	mergeWithTimeCodes()
 	fmt.Println("Press 'Enter' to close")
 	var input string
@@ -22,13 +24,12 @@ func main() {
 func mergeWithTimeCodes() {
 	VALID_VIDEO_FORMATS := []string{".mkv", ".mp4", ".mov"}
 
-	directory := "./"
-	videoResultPath := filepath.Join(directory, "result.mkv")
-	videoTextFilePath := filepath.Join(directory, "videos.txt")
-	timeCodeFilePath := filepath.Join(directory, "timecodes.txt")
+	videoResultPath := filepath.Join(config.CURRENT_DIRECTORY, "result.mkv")
+	videoTextFilePath := filepath.Join(config.TEMP_DIRECTORY, "videos.txt")
+	timeCodeFilePath := filepath.Join(config.CURRENT_DIRECTORY, "timecodes.txt")
 
 	// Listing files
-	files, err := os.ReadDir(directory)
+	files, err := os.ReadDir(config.CURRENT_DIRECTORY)
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -41,7 +42,7 @@ func mergeWithTimeCodes() {
 		if file.IsDir() || !slices.Contains(VALID_VIDEO_FORMATS, fileExt) || file.Name() == "result.mkv" {
 			continue
 		}
-		videoWithPath := filepath.Join(directory, file.Name())
+		videoWithPath := filepath.Join(config.CURRENT_DIRECTORY, file.Name())
 		fmt.Println(videoWithPath)
 		videos = append(videos, videoWithPath)
 	}
@@ -50,7 +51,7 @@ func mergeWithTimeCodes() {
 		log.Fatalln("No videos found")
 	}
 
-	err = merge(videos, directory, videoTextFilePath, videoResultPath)
+	err = merge(videos, videoTextFilePath, videoResultPath)
 
 	if err != nil {
 		log.Println(err)
@@ -77,7 +78,7 @@ func mergeWithTimeCodes() {
 
 }
 
-func merge(videos []string, directory string, videoTextFilePath string, videoResultPath string) error {
+func merge(videos []string, videoTextFilePath string, videoResultPath string) error {
 
 	file, err := os.Create(videoTextFilePath)
 	if err != nil {
@@ -85,7 +86,7 @@ func merge(videos []string, directory string, videoTextFilePath string, videoRes
 	}
 	defer file.Close()
 
-	transitionImagePath, transitionVideoPath := transition.CreateTransitionVideo(directory)
+	transitionImagePath, transitionVideoPath := transition.CreateTransitionVideo()
 
 	for _, video := range videos {
 		file.WriteString(fmt.Sprintf("file '%s'\n", video))
@@ -97,7 +98,7 @@ func merge(videos []string, directory string, videoTextFilePath string, videoRes
 	videoInputOpt := ffmpeg.KwArgs{"f": "concat", "safe": 0}
 	videoOutputOpt := ffmpeg.KwArgs{"c": "copy"}
 	// videoOutputOpt := ffmpeg.KwArgs{"preset": "fast", "c:v": "libx264", "c:a": "aac", "crf": 24, "pix_fmt": "yuv420p", "movflags": "faststart"}
-	err = ffmpeg.Input("videos.txt", videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
+	err = ffmpeg.Input(videoTextFilePath, videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
 
 	file.Close()
 	os.Remove(videoTextFilePath)
