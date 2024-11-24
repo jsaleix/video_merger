@@ -16,6 +16,7 @@ import (
 func main() {
 	config.Init()
 	mergeWithTimeCodes()
+	config.Cleanup()
 	fmt.Println("Press 'Enter' to close")
 	var input string
 	fmt.Scanln(&input)
