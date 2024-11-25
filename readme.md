@@ -6,7 +6,7 @@
 
 ## Features
 
-- Automatically detects video files (`.mp4`, `.mov`, `.mkv`) in the current directory.
+- Detects files using `.mp4`, `.mov` and `.mkv` video formats in the current directory.
 - Merges all videos into a single output file with a gap of 2 seconds between each video.
 - Generates a `timecode.txt` file with the format:
   ```
@@ -88,11 +88,3 @@ video3.mkv
 - Ensure all video files have compatible codecs, or they will be re-encoded.
 
 ---
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-Feel free to contribute or report issues via [GitHub Issues](https://github.com/your-username/video-merger/issues).

@@ -10,6 +10,7 @@ import (
 	"video_merger/timecodes"
 	"video_merger/transition"
 
+	gcl "github.com/MaphicalYng/golang-cmd-loading"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -17,7 +18,7 @@ func main() {
 	config.Init()
 	mergeWithTimeCodes()
 	config.Cleanup()
-	fmt.Println("Press 'Enter' to close")
+	fmt.Println("Press 'Enter' to quit")
 	var input string
 	fmt.Scanln(&input)
 }
@@ -43,7 +44,7 @@ func mergeWithTimeCodes() {
 			continue
 		}
 		videoWithPath := filepath.Join(config.CURRENT_DIRECTORY, file.Name())
-		fmt.Println(videoWithPath)
+		// fmt.Println(videoWithPath)
 		videos = append(videos, videoWithPath)
 	}
 
@@ -51,12 +52,19 @@ func mergeWithTimeCodes() {
 		log.Fatalln("No video found")
 	}
 
+	fmt.Printf("%d videos found.\n", len(videos))
+
+	// <-- Merging videos
 	err = merge(videos, videoResultPath)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	fmt.Printf("Video available at: %s\n", videoResultPath)
+	// ->
+
+	// <-- Generating timecodes.txt
 	timeCodesFile, err := os.Create(timeCodeFilePath)
 	if err != nil {
 		log.Fatalln(err)
@@ -65,8 +73,6 @@ func mergeWithTimeCodes() {
 
 	if err != nil {
 		log.Fatalln(err)
-	} else {
-		fmt.Printf("Video available at: %s\n", videoResultPath)
 	}
 
 	fmt.Println("Generating timecodes...")
@@ -74,7 +80,11 @@ func mergeWithTimeCodes() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println("Timecodes generated successfully")
+	fmt.Printf("Timecodes file available at: %s\n", timeCodeFilePath)
+
+	// ->
+
+	fmt.Println("Done")
 
 }
 
@@ -94,12 +104,15 @@ func merge(videos []string, videoResultPath string) error {
 		file.WriteString(fmt.Sprintf("file '%s'\n", transitionVideoPath))
 	}
 
-	fmt.Println("Merging videos...")
+	// fmt.Println("Merging videos...")
 
 	videoInputOpt := ffmpeg.KwArgs{"f": "concat", "safe": 0}
 	videoOutputOpt := ffmpeg.KwArgs{"c": "copy"}
 	// videoOutputOpt := ffmpeg.KwArgs{"preset": "fast", "c:v": "libx264", "c:a": "aac", "crf": 24, "pix_fmt": "yuv420p", "movflags": "faststart"}
-	err = ffmpeg.Input(videoTextFilePath, videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
+	gcl.WithLoadingMessage(func(cancelLoading func()) {
+		err = ffmpeg.Input(videoTextFilePath, videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
+		cancelLoading()
+	}, "Merging videos...")
 
 	file.Close()
 	os.Remove(videoTextFilePath)

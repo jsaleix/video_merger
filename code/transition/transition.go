@@ -20,7 +20,7 @@ func CreateTransitionVideo() (imgPath, videoPath string) {
 
 	createTransitionImage(transitionImagePath)
 
-	fmt.Println(transitionVideoPath)
+	// fmt.Println(transitionVideoPath)
 	inputOpts := ffmpeg.KwArgs{"f": "image2", "loop": 1, "framerate": 1, "t": config.TRANSITION_DURATION}
 	// inputOpts := ffmpeg.KwArgs{"loop": 1}
 	outputOpts := ffmpeg.KwArgs{"c:v": "libx264", "c:a": "aac", "crf": 18, "pix_fmt": "yuv420p", "movflags": "faststart"}
@@ -28,7 +28,7 @@ func CreateTransitionVideo() (imgPath, videoPath string) {
 	ffmpeg.Input(transitionImagePath, inputOpts).Output(transitionVideoPath, outputOpts).OverWriteOutput().Run()
 
 	time.Sleep(2 * time.Second)
-	fmt.Println("Transition video created")
+	fmt.Println("Transition video created.")
 	return transitionImagePath, transitionVideoPath
 }
 
