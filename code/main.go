@@ -26,7 +26,6 @@ func mergeWithTimeCodes() {
 	VALID_VIDEO_FORMATS := []string{".mkv", ".mp4", ".mov"}
 
 	videoResultPath := filepath.Join(config.CURRENT_DIRECTORY, "result.mkv")
-	videoTextFilePath := filepath.Join(config.TEMP_DIRECTORY, "videos.txt")
 	timeCodeFilePath := filepath.Join(config.CURRENT_DIRECTORY, "timecodes.txt")
 
 	// Listing files
@@ -49,13 +48,13 @@ func mergeWithTimeCodes() {
 	}
 
 	if len(videos) == 0 {
-		log.Fatalln("No videos found")
+		log.Fatalln("No video found")
 	}
 
-	err = merge(videos, videoTextFilePath, videoResultPath)
+	err = merge(videos, videoResultPath)
 
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 
 	timeCodesFile, err := os.Create(timeCodeFilePath)
@@ -79,7 +78,8 @@ func mergeWithTimeCodes() {
 
 }
 
-func merge(videos []string, videoTextFilePath string, videoResultPath string) error {
+func merge(videos []string, videoResultPath string) error {
+	videoTextFilePath := filepath.Join(config.TEMP_DIRECTORY, "videos.txt")
 
 	file, err := os.Create(videoTextFilePath)
 	if err != nil {
