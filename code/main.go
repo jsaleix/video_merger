@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,15 +17,19 @@ import (
 )
 
 func main() {
+	reencode := flag.Bool("c", false, "re-encode the merged video")
+	addTransition := flag.Bool("t", false, "add a transition video between inputs")
+	flag.Parse()
+
 	config.Init()
-	mergeWithTimeCodes()
+	mergeWithTimeCodes(*reencode, *addTransition)
 	config.Cleanup()
 	fmt.Println("Press 'Enter' to quit")
 	var input string
 	fmt.Scanln(&input)
 }
 
-func mergeWithTimeCodes() {
+func mergeWithTimeCodes(reencode bool, addTransition bool) {
 	VALID_VIDEO_FORMATS := []string{".mkv", ".mp4", ".mov"}
 
 	videoResultPath := filepath.Join(config.CURRENT_DIRECTORY, "result.mkv")
@@ -56,7 +61,7 @@ func mergeWithTimeCodes() {
 	fmt.Printf("%d videos found.\n", len(videos))
 
 	// <-- Merging videos
-	err = merge(videos, videoResultPath)
+	err = merge(videos, videoResultPath, reencode, addTransition)
 
 	if err != nil {
 		log.Fatalln(err)
@@ -77,7 +82,7 @@ func mergeWithTimeCodes() {
 	}
 
 	fmt.Println("Generating timecodes...")
-	err = timecodes.GenerateTimeCodes(timeCodeFilePath, videos)
+	err = timecodes.GenerateTimeCodes(timeCodeFilePath, videos, addTransition)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -89,7 +94,7 @@ func mergeWithTimeCodes() {
 
 }
 
-func merge(videos []string, videoResultPath string) error {
+func merge(videos []string, videoResultPath string, reencode bool, addTransition bool) error {
 	videoTextFilePath := filepath.Join(config.TEMP_DIRECTORY, "videos.txt")
 
 	file, err := os.Create(videoTextFilePath)
@@ -97,7 +102,11 @@ func merge(videos []string, videoResultPath string) error {
 		log.Fatalln(err)
 	}
 
-	transitionImagePath, transitionVideoPath := transition.CreateTransitionVideo()
+	var transitionImagePath string
+	var transitionVideoPath string
+	if addTransition {
+		transitionImagePath, transitionVideoPath = transition.CreateTransitionVideo()
+	}
 
 	// Calculer duree totale pour le pourcentage
 	totalDuration := 0.0
@@ -106,11 +115,13 @@ func merge(videos []string, videoResultPath string) error {
 		totalDuration += d.Seconds()
 	}
 	// Ajouter les transitions (sauf apres la derniere)
-	totalDuration += float64(len(videos)-1) * config.TRANSITION_DURATION.Seconds()
+	if addTransition {
+		totalDuration += float64(len(videos)-1) * config.TRANSITION_DURATION.Seconds()
+	}
 
 	for i, video := range videos {
 		file.WriteString(fmt.Sprintf("file '%s'\n", video))
-		if i < len(videos)-1 {
+		if addTransition && i < len(videos)-1 {
 			file.WriteString(fmt.Sprintf("file '%s'\n", transitionVideoPath))
 		}
 	}
@@ -119,12 +130,16 @@ func merge(videos []string, videoResultPath string) error {
 	fmt.Println("Merging videos...")
 
 	// Construire la commande FFmpeg
-	args := []string{
-		"-f", "concat", "-safe", "0", "-i", videoTextFilePath,
-		"-preset", "fast", "-c:v", "libx264", "-c:a", "aac",
-		"-crf", "24", "-pix_fmt", "yuv420p", "-movflags", "faststart",
-		"-y", videoResultPath,
+	args := []string{"-f", "concat", "-safe", "0", "-i", videoTextFilePath}
+	if reencode {
+		args = append(args,
+			"-preset", "fast", "-c:v", "libx264", "-c:a", "aac",
+			"-crf", "24", "-pix_fmt", "yuv420p", "-movflags", "faststart",
+		)
+	} else {
+		args = append(args, "-c", "copy")
 	}
+	args = append(args, "-y", videoResultPath)
 
 	cmd := exec.Command("ffmpeg", args...)
 
@@ -163,8 +178,10 @@ func merge(videos []string, videoResultPath string) error {
 
 	// Nettoyage
 	os.Remove(videoTextFilePath)
-	os.Remove(transitionImagePath)
-	os.Remove(transitionVideoPath)
+	if addTransition {
+		os.Remove(transitionImagePath)
+		os.Remove(transitionVideoPath)
+	}
 
 	return nil
 }

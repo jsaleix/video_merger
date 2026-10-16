@@ -1,13 +1,15 @@
 # Video Merger
 
-**Video Merger** is a Go application that merges all video files in the current directory into a single video file, with a 2 seconds gap between each video. Additionally, it generates a `timecode.txt` file that lists the start time of each video along with its name.
+**Video Merger** is a Go application that merges all video files in the current directory into a single video file. It can optionally add a 2 seconds transition video between each input. Additionally, it generates a `timecode.txt` file that lists the start time of each video along with its name.
 
 ---
 
 ## Features
 
 - Detects files using `.mp4`, `.mov` and `.mkv` video formats in the current directory.
-- Merges all videos into a single output file with a gap of 2 seconds between each video.
+- Merges all videos into a single output file without re-encoding by default.
+- Optionally adds a 2 seconds transition video between each video.
+- Optionally re-encodes the merged output for compatible streams.
 - Generates a `timecode.txt` file with the format:
   ```
   Timecodes
@@ -53,6 +55,17 @@
    ./video-merger
    ```
 
+   By default, videos are concatenated with stream copying (`-c` is not enabled)
+   and no transition is added. Options:
+
+   - `-c`: re-encode the merged video with H.264/AAC.
+   - `-t`: add the transition video between each pair of input videos.
+
+   For example, to add transitions and re-encode:
+   ```bash
+   ./video-merger -c -t
+   ```
+
 3. The following files will be generated:
    - `result.mkv`: The merged video.
    - `timecode.txt`: A file listing the start time and name of each video.
@@ -85,6 +98,10 @@ video3.mkv
 
 - Only files with `.mp4`, `.mov`, or `.mkv` extensions are included.
 - The merged video file will use the Matroska format (`.mkv`) for compatibility.
-- Ensure all video files have compatible codecs, or they will be re-encoded.
+- Stream copying requires all input videos to have compatible streams. If they do
+  not, use `-c` to re-encode the output.
+- `-t` and `-c` are independent options. Using `-t` without `-c` still requests
+  stream copying; FFmpeg may reject the merge if the transition and input streams
+  are not compatible.
 
 ---
