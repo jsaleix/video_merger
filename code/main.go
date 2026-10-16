@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"video_merger/config"
 	"video_merger/timecodes"
 	"video_merger/transition"
-
-	gcl "github.com/MaphicalYng/golang-cmd-loading"
-	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 func main() {
@@ -95,9 +96,17 @@ func merge(videos []string, videoResultPath string) error {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer file.Close()
 
 	transitionImagePath, transitionVideoPath := transition.CreateTransitionVideo()
+
+	// Calculer duree totale pour le pourcentage
+	totalDuration := 0.0
+	for _, video := range videos {
+		d, _ := timecodes.GetVideoDuration(video)
+		totalDuration += d.Seconds()
+	}
+	// Ajouter les transitions (sauf apres la derniere)
+	totalDuration += float64(len(videos)-1) * config.TRANSITION_DURATION.Seconds()
 
 	for i, video := range videos {
 		file.WriteString(fmt.Sprintf("file '%s'\n", video))
@@ -105,22 +114,70 @@ func merge(videos []string, videoResultPath string) error {
 			file.WriteString(fmt.Sprintf("file '%s'\n", transitionVideoPath))
 		}
 	}
-
-	// fmt.Println("Merging videos...")
-
-	videoInputOpt := ffmpeg.KwArgs{"f": "concat", "safe": 0}
-// videoOutputOpt := ffmpeg.KwArgs{"c": "copy"}
-	videoOutputOpt := ffmpeg.KwArgs{"preset": "fast", "c:v": "libx264", "c:a": "aac", "crf": 24, "pix_fmt": "yuv420p", "movflags": "faststart"}
-	gcl.WithLoadingMessage(func(cancelLoading func()) {
-		err = ffmpeg.Input(videoTextFilePath, videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
-		cancelLoading()
-	}, "Merging videos...")
-
 	file.Close()
+
+	fmt.Println("Merging videos...")
+
+	// Construire la commande FFmpeg
+	args := []string{
+		"-f", "concat", "-safe", "0", "-i", videoTextFilePath,
+		"-preset", "fast", "-c:v", "libx264", "-c:a", "aac",
+		"-crf", "24", "-pix_fmt", "yuv420p", "-movflags", "faststart",
+		"-y", videoResultPath,
+	}
+
+	cmd := exec.Command("ffmpeg", args...)
+
+	// Pipe pour capturer stderr
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// Parser la progression
+	scanner := bufio.NewScanner(stderrPipe)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "time=") {
+			parts := strings.Split(line, "time=")
+			if len(parts) > 1 {
+				timeStr := strings.Split(parts[1], " ")[0]
+				currentSeconds := parseTimeToSeconds(timeStr)
+				percent := int((currentSeconds / totalDuration) * 100)
+				if percent > 100 {
+					percent = 100
+				}
+				fmt.Printf("\rMerging videos... %d%%", percent)
+			}
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	fmt.Println()
+
+	// Nettoyage
 	os.Remove(videoTextFilePath)
 	os.Remove(transitionImagePath)
 	os.Remove(transitionVideoPath)
 
-	return err
+	return nil
+}
 
+// Helper pour parser "HH:MM:SS.xx" en secondes
+func parseTimeToSeconds(timeStr string) float64 {
+	parts := strings.Split(timeStr, ":")
+	var seconds float64
+	if len(parts) == 3 {
+		h, _ := strconv.ParseFloat(parts[0], 64)
+		m, _ := strconv.ParseFloat(parts[1], 64)
+		s, _ := strconv.ParseFloat(parts[2], 64)
+		seconds = h*3600 + m*60 + s
+	}
+	return seconds
 }
