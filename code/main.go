@@ -99,16 +99,18 @@ func merge(videos []string, videoResultPath string) error {
 
 	transitionImagePath, transitionVideoPath := transition.CreateTransitionVideo()
 
-	for _, video := range videos {
+	for i, video := range videos {
 		file.WriteString(fmt.Sprintf("file '%s'\n", video))
-		file.WriteString(fmt.Sprintf("file '%s'\n", transitionVideoPath))
+		if i < len(videos)-1 {
+			file.WriteString(fmt.Sprintf("file '%s'\n", transitionVideoPath))
+		}
 	}
 
 	// fmt.Println("Merging videos...")
 
 	videoInputOpt := ffmpeg.KwArgs{"f": "concat", "safe": 0}
-	videoOutputOpt := ffmpeg.KwArgs{"c": "copy"}
-	// videoOutputOpt := ffmpeg.KwArgs{"preset": "fast", "c:v": "libx264", "c:a": "aac", "crf": 24, "pix_fmt": "yuv420p", "movflags": "faststart"}
+// videoOutputOpt := ffmpeg.KwArgs{"c": "copy"}
+	videoOutputOpt := ffmpeg.KwArgs{"preset": "fast", "c:v": "libx264", "c:a": "aac", "crf": 24, "pix_fmt": "yuv420p", "movflags": "faststart"}
 	gcl.WithLoadingMessage(func(cancelLoading func()) {
 		err = ffmpeg.Input(videoTextFilePath, videoInputOpt).Output(videoResultPath, videoOutputOpt).OverWriteOutput().Run()
 		cancelLoading()
